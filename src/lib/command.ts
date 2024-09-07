@@ -55,8 +55,8 @@ export class OptionNode {
 
 export class Command {
   root: Map<string, OptionNode> = new Map();
-  // private currentRoot?: OptionNode;
-  // private commands: string[] = []
+  private currentRoot?: OptionNode;
+  private commands: string[] = []
 
   option(config: OptionConfig) {
     const node = new OptionNode(config.value, config.isRoot, config.arguments, config.ref)
@@ -87,27 +87,27 @@ export class Command {
     this.registerOption({ ...props, node: props.node.next })
   }
 
-  // validate(...commands: string[]) {
-  //   if (!this.root.size)
-  //     throw new Error("no commands registered", {
-  //       cause: "VALIDATION_ERROR",
-  //     });
+  validate(...commands: string[]) {
+    if (!this.root.size)
+      throw new Error("No options registered", {
+        cause: "VALIDATION_ERROR",
+      });
 
-  //   const rootCommand = this.commandToCode(commands[0]);
+    const rootCommand = this.commandToCode(commands[0]);
 
-  //   const rootNode = this.root.get(rootCommand);
+    const rootNode = this.root.get(rootCommand);
 
-  //   for (const command of commands) {
-  //     if (!rootNode) throw new Error(`invalid root command ${rootCommand}`);
-  //     const isValidCommand = this.recursiveValidation(rootNode, command, false);
-  //     if (!isValidCommand) throw new Error(`invalid command ${command}`);
-  //   }
+    for (const command of commands) {
+      if (!rootNode) throw new Error(`invalid root command ${rootCommand}`);
+      const isValidCommand = this.recursiveValidation(rootNode, command, false);
+      if (!isValidCommand) throw new Error(`invalid command ${command}`);
+    }
 
-  //   this.commands = commands
-  //   this.currentRoot = rootNode;
+    this.commands = commands
+    this.currentRoot = rootNode;
 
-  //   return this;
-  // }
+    return this;
+  }
 
   // exec() {
   //   if (!this.currentRoot) throw new Error("No currentRoot found");
@@ -165,22 +165,25 @@ export class Command {
   //   return findNode;
   // }
 
-  // private recursiveValidation(
-  //   node: CommandNode,
-  //   command: string,
-  //   equal: boolean,
-  // ) {
-  //   if (node.value === command) {
-  //     equal = true;
-  //     return equal;
-  //   }
+  private recursiveValidation(
+    node: OptionNode,
+    command: string,
+    equal: boolean,
+  ) {
+    if (node.value === command) {
+      equal = true;
+      return equal;
+    }
 
-  //   node.childrens.forEach((childNode) => {
-  //     equal = this.recursiveValidation(childNode, command, equal);
-  //   });
+    if (!node.next) {
+      equal = false
+      return equal
+    }
 
-  //   return equal;
-  // }
+    this.recursiveValidation(node.next, command, equal)
+
+    return equal;
+  }
 
   private commandToCode(command: string) {
     let hash = 0;

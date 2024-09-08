@@ -99,6 +99,8 @@ export class Command {
   }
 
   validate(...commands: string[]) {
+    if (!commands.length) return
+
     if (!this.root.size)
       throw new Error("No options registered", {
         cause: "VALIDATION_ERROR",
@@ -108,9 +110,13 @@ export class Command {
 
     const rootNode = this.root.get(rootCommand);
 
-    for (const command of commands) {
+    for (let index = 0; index < commands.length; index++) {
+      const command = commands[index]
+
       if (!rootNode) throw new Error(`invalid root command ${rootCommand}`);
-      const isValidCommand = this.recursiveValidation(rootNode, command, false);
+
+      const isValidCommand = this.recursiveValidation(rootNode, commands, command, index, false);
+
       if (!isValidCommand) throw new Error(`invalid command ${command}`);
     }
 
@@ -176,8 +182,36 @@ export class Command {
     return node;
   }
 
-  private recursiveValidation(node: OptionNode, command: string, equal: boolean) {
-    if (node.value === command) {
+  private recursiveValidation(node: OptionNode, commands: string[], command: string, index: number, equal: boolean) {
+    if (node.value === command && node.arguments) {
+      const argumentValue = commands.at(index + 1)
+
+      if (!argumentValue) {
+        equal = false
+        return equal
+      }
+
+      if (Array.isArray(node.arguments)) {
+
+
+        node.arguments.forEach(argument => {
+          if (argument.type === "number") {
+            if (Number.isNaN(argumentValue)) {
+              equal = false
+              return equal
+            }
+          }
+        })
+      } else {
+
+        if (node.arguments && node.arguments.type === "number") {
+          if (Number.isNaN(argumentValue)) {
+            equal = false
+            return equal
+          }
+        }
+      }
+
       equal = true;
       return equal;
     }
@@ -187,7 +221,7 @@ export class Command {
       return equal;
     }
 
-    this.recursiveValidation(node.next, command, equal);
+    this.recursiveValidation(node.next, commands, command, index, equal);
 
     return equal;
   }

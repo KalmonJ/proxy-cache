@@ -3,9 +3,9 @@
 import { command } from "./config/command"
 
 
-const startApplication = () => {
-  console.log(command.root)
+const startApplication = (...commands: string[]) => {
+  command.validate(...commands)
 }
 
 
-startApplication()
+startApplication(...process.argv.slice(2))

@@ -117,6 +117,8 @@ export class Command {
 
       const isValidCommand = this.recursiveValidation(rootNode, commands, command, index, false);
 
+      console.log(isValidCommand, command)
+
       if (!isValidCommand) throw new Error(`invalid command ${command}`);
     }
 
@@ -183,6 +185,7 @@ export class Command {
   }
 
   private recursiveValidation(node: OptionNode, commands: string[], command: string, index: number, equal: boolean) {
+
     if (node.value === command && node.arguments) {
       const argumentValue = commands.at(index + 1)
 
@@ -193,27 +196,39 @@ export class Command {
 
       if (Array.isArray(node.arguments)) {
 
-
         node.arguments.forEach(argument => {
-          if (argument.type === "number") {
-            if (Number.isNaN(argumentValue)) {
-              equal = false
-              return equal
-            }
+          if (argument.type === "number" && Number.isNaN(argumentValue)) {
+            equal = true
+            return equal
           }
         })
       } else {
-
-        if (node.arguments && node.arguments.type === "number") {
-          if (Number.isNaN(argumentValue)) {
-            equal = false
-            return equal
-          }
+        if (node.arguments.type === "number" && !Number.isNaN(argumentValue)) {
+          equal = true
+          return equal
         }
       }
 
       equal = true;
       return equal;
+    }
+
+    if (node.value !== command && node.arguments) {
+      if (Array.isArray(node.arguments)) {
+        node.arguments.forEach(argument => {
+          const numberValue = Number(command)
+          if (argument.type === "number" && !Number.isNaN(numberValue)) {
+            equal = true
+            return equal
+          }
+        })
+      } else {
+        const numberValue = Number(command)
+        if (node.arguments && node.arguments.type === "number" && !Number.isNaN(numberValue)) {
+          equal = true
+          return equal
+        }
+      }
     }
 
     if (!node.next) {

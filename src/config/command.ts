@@ -10,6 +10,7 @@ command
     arguments: {
       type: "number",
       name: "port",
+      required: true,
       action: function () {
         console.log("hello world")
       }
@@ -23,6 +24,7 @@ command
     arguments: {
       type: "string",
       name: "url",
+      required: true,
       action: function () {
         console.log("hello world")
       }

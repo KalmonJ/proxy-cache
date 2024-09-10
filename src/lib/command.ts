@@ -28,6 +28,7 @@ type Argument = {
   type: "string" | "number";
   name: string;
   action: Maybe<Function>;
+  required: boolean;
 };
 
 type RegisterOptionProps = OptionConfig & {
@@ -58,6 +59,7 @@ export class OptionNode {
 export class Command {
   root: Map<string, OptionNode> = new Map();
   private currentRoot?: OptionNode;
+  private commands: string[] = [];
 
   option(config: OptionConfig) {
     const node = new OptionNode(
@@ -99,7 +101,7 @@ export class Command {
   }
 
   validate(...commands: string[]) {
-    if (!commands.length) return
+    if (!commands.length) return;
 
     if (!this.root.size)
       throw new Error("No options registered", {
@@ -109,20 +111,39 @@ export class Command {
     const rootCommand = this.commandToCode(commands[0]);
 
     const rootNode = this.root.get(rootCommand);
+    this.currentRoot = rootNode;
+    this.commands = commands;
 
     for (let index = 0; index < commands.length; index++) {
-      const command = commands[index]
+      const command = commands[index];
 
       if (!rootNode) throw new Error(`invalid root command ${rootCommand}`);
 
-      const isValidCommand = this.recursiveValidation(rootNode, commands, command, index, false);
+      const node = this.inspect(command);
+      const nextCommand = commands.at(index + 1);
 
-      console.log(isValidCommand, command)
+      if (node) {
+        const nextCommandValue = Number(nextCommand);
 
-      if (!isValidCommand) throw new Error(`invalid command ${command}`);
+        if (Array.isArray(node.arguments)) {
+          node.arguments.forEach((argument) => {
+            if (argument.required && !nextCommand)
+              throw new Error(`Missing argument ${argument.name}`);
+            if (argument.type === "number" && Number.isNaN(nextCommandValue))
+              throw new Error(
+                `Invalid argument type, expected: ${argument.type}, received: ${nextCommand}`,
+              );
+          });
+        } else {
+          if (node.arguments.required && !nextCommand)
+            throw new Error(`Missing argument ${node.arguments.name}`);
+          if (node.arguments.type === "number" && Number.isNaN(nextCommandValue))
+            throw new Error(
+              `Invalid argument type, expected: ${node.arguments.type}, received: ${nextCommand}`,
+            );
+        }
+      }
     }
-
-    this.currentRoot = rootNode;
 
     return this;
   }
@@ -133,112 +154,67 @@ export class Command {
   }
 
   private async recursiveExecution(node: OptionNode) {
-
-    if (!node.next) {
-      return
-    }
-
-    if (Array.isArray(node.arguments)) {
-      node.arguments.forEach(async argument => {
-        if (isAsyncFunction(argument.action) && argument.action) {
-          await argument.action()
-        } else {
-          if (argument.action) {
-            argument.action()
-          }
-        }
-      })
-    } else {
-      if (isAsyncFunction(node.arguments) && node.arguments.action) {
-        await node.arguments.action()
-      } else {
-        if (node.arguments.action) {
-          node.arguments.action()
-        }
-      }
-    }
-
-    this.recursiveExecution(node.next)
-  }
-
-  inspect(command: string) {
-    let value: OptionNode | undefined;
-
-    this.root.forEach((node) => {
-      value = this.findNode(node, command);
-    });
-    return value;
-  }
-
-  private findNode(node: OptionNode, command: string) {
     if (!node.next) {
       return;
     }
 
-    if (node.value === command) {
-      return node;
+    if (Array.isArray(node.arguments)) {
+      node.arguments.forEach(async (argument) => {
+        if (isAsyncFunction(argument.action) && argument.action) {
+          await argument.action();
+        } else {
+          if (argument.action) {
+            argument.action();
+          }
+        }
+      });
+    } else {
+      if (isAsyncFunction(node.arguments) && node.arguments.action) {
+        await node.arguments.action();
+      } else {
+        if (node.arguments.action) {
+          node.arguments.action();
+        }
+      }
     }
 
-    this.findNode(node.next, command);
-
-    return node;
+    this.recursiveExecution(node.next);
   }
 
-  private recursiveValidation(node: OptionNode, commands: string[], command: string, index: number, equal: boolean) {
+  inspect(command: string) {
+    const code = this.commandToCode(command);
+    const rootNode = this.root.get(code);
+    let findNode: OptionNode | undefined;
 
-    if (node.value === command && node.arguments) {
-      const argumentValue = commands.at(index + 1)
-
-      if (!argumentValue) {
-        equal = false
-        return equal
-      }
-
-      if (Array.isArray(node.arguments)) {
-
-        node.arguments.forEach(argument => {
-          if (argument.type === "number" && Number.isNaN(argumentValue)) {
-            equal = true
-            return equal
-          }
-        })
-      } else {
-        if (node.arguments.type === "number" && !Number.isNaN(argumentValue)) {
-          equal = true
-          return equal
-        }
-      }
-
-      equal = true;
-      return equal;
+    if (rootNode) {
+      return rootNode;
     }
 
-    if (node.value !== command && node.arguments) {
-      if (Array.isArray(node.arguments)) {
-        node.arguments.forEach(argument => {
-          const numberValue = Number(command)
-          if (argument.type === "number" && !Number.isNaN(numberValue)) {
-            equal = true
-            return equal
-          }
-        })
-      } else {
-        const numberValue = Number(command)
-        if (node.arguments && node.arguments.type === "number" && !Number.isNaN(numberValue)) {
-          equal = true
-          return equal
-        }
-      }
+    this.root.forEach((node) => {
+      findNode = this.findNode(node, command);
+    });
+
+    return findNode;
+  }
+
+  private findNode(
+    node: OptionNode,
+    command: string,
+    findNode?: OptionNode,
+  ): OptionNode | undefined {
+    if (node.value === command) {
+      findNode = node;
+      return findNode;
     }
 
     if (!node.next) {
-      equal = false;
-      return equal;
+      findNode = undefined;
+      return findNode;
     }
 
-    this.recursiveValidation(node.next, commands, command, index, equal);
+    findNode = this.findNode(node.next, command, findNode);
 
-    return equal;
+    return findNode;
   }
 
   private commandToCode(command: string) {

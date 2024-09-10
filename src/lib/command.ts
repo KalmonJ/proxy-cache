@@ -1,4 +1,5 @@
 import { isAsyncFunction } from "util/types";
+import { CommandError } from "./error";
 
 export type CommandType = "option" | "argument";
 
@@ -59,7 +60,6 @@ export class OptionNode {
 export class Command {
   root: Map<string, OptionNode> = new Map();
   private currentRoot?: OptionNode;
-  private commands: string[] = [];
 
   option(config: OptionConfig) {
     const node = new OptionNode(
@@ -77,7 +77,11 @@ export class Command {
     if (!node.isRoot && node.ref) {
       const code = this.commandToCode(node.ref);
       const rootNode = this.root.get(code);
-      if (!rootNode) throw new Error("Invalid reference");
+
+      if (!rootNode) throw new CommandError(`Invalid reference ${node.ref}`, {
+        cause: "REFERENCE_ERROR"
+      });
+
       this.registerOption({ ...config, node: rootNode });
     }
 
@@ -112,12 +116,14 @@ export class Command {
 
     const rootNode = this.root.get(rootCommand);
     this.currentRoot = rootNode;
-    this.commands = commands;
 
     for (let index = 0; index < commands.length; index++) {
       const command = commands[index];
 
-      if (!rootNode) throw new Error(`invalid root command ${rootCommand}`);
+      if (!rootNode)
+        throw new CommandError(`invalid root command ${commands[0]}`, {
+          cause: "VALIDATION_ERROR",
+        });
 
       const node = this.inspect(command);
       const nextCommand = commands.at(index + 1);
@@ -128,18 +134,28 @@ export class Command {
         if (Array.isArray(node.arguments)) {
           node.arguments.forEach((argument) => {
             if (argument.required && !nextCommand)
-              throw new Error(`Missing argument ${argument.name}`);
+              throw new CommandError(`Missing argument ${argument.name}`, {
+                cause: "VALIDATION_ERROR",
+              });
             if (argument.type === "number" && Number.isNaN(nextCommandValue))
-              throw new Error(
+              throw new CommandError(
                 `Invalid argument type, expected: ${argument.type}, received: ${nextCommand}`,
+                {
+                  cause: "VALIDATION_ERROR",
+                },
               );
           });
         } else {
           if (node.arguments.required && !nextCommand)
-            throw new Error(`Missing argument ${node.arguments.name}`);
+            throw new CommandError(`Missing argument ${node.arguments.name}`, {
+              cause: "VALIDATION_ERROR",
+            });
           if (node.arguments.type === "number" && Number.isNaN(nextCommandValue))
-            throw new Error(
+            throw new CommandError(
               `Invalid argument type, expected: ${node.arguments.type}, received: ${nextCommand}`,
+              {
+                cause: "VALIDATION_ERROR",
+              },
             );
         }
       }
@@ -149,7 +165,10 @@ export class Command {
   }
 
   exec() {
-    if (!this.currentRoot) throw new Error("No currentRoot found");
+    if (!this.currentRoot) throw new CommandError("No currentRoot found", {
+      cause: "EXECUTION_ERROR"
+    });
+
     this.recursiveExecution(this.currentRoot);
   }
 

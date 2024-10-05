@@ -43,6 +43,7 @@ export class OptionNode {
   next: Maybe<OptionNode>;
   isRoot: boolean;
   arguments: Argument[] | Argument;
+  runtimeValue: string | null = null
 
   constructor(
     value: string,
@@ -54,6 +55,10 @@ export class OptionNode {
     this.isRoot = isRoot;
     this.arguments = optionArguments;
     this.ref = ref;
+  }
+
+  setRuntimeValue(value: string) {
+    this.runtimeValue = value
   }
 }
 
@@ -158,6 +163,8 @@ export class Command {
               },
             );
         }
+
+        node.setRuntimeValue(nextCommand || "")
       }
     }
 
@@ -173,28 +180,29 @@ export class Command {
   }
 
   private async recursiveExecution(node: OptionNode) {
-    if (!node.next) {
-      return;
-    }
 
     if (Array.isArray(node.arguments)) {
       node.arguments.forEach(async (argument) => {
         if (isAsyncFunction(argument.action) && argument.action) {
-          await argument.action();
+          await argument.action(node.runtimeValue);
         } else {
           if (argument.action) {
-            argument.action();
+            argument.action(node.runtimeValue);
           }
         }
       });
     } else {
       if (isAsyncFunction(node.arguments) && node.arguments.action) {
-        await node.arguments.action();
+        await node.arguments.action(node.runtimeValue);
       } else {
         if (node.arguments.action) {
-          node.arguments.action();
+          node.arguments.action(node.runtimeValue);
         }
       }
+    }
+
+    if (!node.next) {
+      return;
     }
 
     this.recursiveExecution(node.next);

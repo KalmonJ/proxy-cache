@@ -1,6 +1,12 @@
 import { Command } from "../lib/command";
+import { config } from "dotenv"
+import { startServer } from "../lib/server";
+
+config()
 
 const command = new Command();
+
+let PORT = 4040
 
 command
   .option({
@@ -11,8 +17,8 @@ command
       type: "number",
       name: "port",
       required: true,
-      action: function () {
-        console.log("hello world")
+      action: function (argument: string) {
+        PORT = Number(argument)
       }
     }
   })
@@ -25,8 +31,8 @@ command
       type: "string",
       name: "url",
       required: true,
-      action: function () {
-        console.log("hello world")
+      action: function (value: string) {
+        startServer(value, PORT)
       }
     }
   });

@@ -1,8 +1,10 @@
 import express from "express"
 import { createProxyMiddleware, responseInterceptor } from "http-proxy-middleware"
+import { memoryCache } from "../config/cache"
 
 const app = express()
 app.use(express.json())
+
 
 export const startServer = (url: string, port: number) => {
 
@@ -10,11 +12,25 @@ export const startServer = (url: string, port: number) => {
     target: url,
     changeOrigin: true,
     selfHandleResponse: true,
+    followRedirects: true,
     on: {
-      proxyRes: responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
-        const response = responseBuffer.toString("utf-8")
-        console.log(response, "resposta")
-        return response
+      proxyReq(_, req, res, __) {
+        const URL = url + req.url
+        const buffer = memoryCache.getValue(URL)
+        if (buffer) {
+          res.writeHead(200, { "content-type": "application/json", "X-Cache": "HIT" }).end(buffer)
+        }
+      },
+      proxyRes: responseInterceptor(async (responseBuffer, _, req, res) => {
+        const URL = url + req.url
+        const cachingData = memoryCache.getValue(URL)
+
+        if (!cachingData) {
+          memoryCache.setValue(URL, responseBuffer)
+          res.writeHead(200, { "X-Cache": "MISS" }).end(responseBuffer)
+        }
+
+        return responseBuffer
       })
     }
   })

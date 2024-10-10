@@ -8,6 +8,7 @@ type Maybe<T> = T | undefined;
 type OptionBaseConfig = {
   type: "option";
   value: string;
+  action?: Function
   isRoot: false;
   ref: string;
   arguments: Argument[] | Argument;
@@ -16,12 +17,22 @@ type OptionBaseConfig = {
 type OptionRootConfig = {
   type: "option";
   value: string;
+  action?: Function
   isRoot: true;
   arguments: Argument[] | Argument;
   ref?: string;
 };
 
-type OptionUnion = OptionBaseConfig | OptionRootConfig;
+type StandaloneOption = {
+  type: "standalone"
+  value: string
+  action: Function
+  isRoot: boolean
+  arguments?: Argument[] | Argument
+  ref?: string
+}
+
+type OptionUnion = OptionBaseConfig | OptionRootConfig | StandaloneOption;
 
 type OptionConfig = OptionUnion;
 
@@ -37,24 +48,29 @@ type RegisterOptionProps = OptionConfig & {
 };
 
 export class OptionNode {
-  type: "option" = "option";
+  type: "option" | "standalone" = "option";
   value: string;
   ref: Maybe<string>;
   next: Maybe<OptionNode>;
   isRoot: boolean;
-  arguments: Argument[] | Argument;
+  arguments?: Argument[] | Argument;
   runtimeValue: string | null = null
+  action?: Function
 
   constructor(
     value: string,
     isRoot: boolean,
-    optionArguments: Argument[] | Argument,
     ref: Maybe<string>,
+    type: "option" | "standalone",
+    optionArguments?: Argument[] | Argument,
+    action?: Function
   ) {
     this.value = value;
     this.isRoot = isRoot;
     this.arguments = optionArguments;
     this.ref = ref;
+    this.action = action
+    this.type = type
   }
 
   setRuntimeValue(value: string) {
@@ -70,13 +86,20 @@ export class Command {
     const node = new OptionNode(
       config.value,
       config.isRoot,
-      config.arguments,
       config.ref,
+      config.type,
+      config.arguments,
+      config.action
     );
 
     if (node.isRoot && !this.root.size) {
       this.root.set(this.commandToCode(node.value), node);
       return this;
+    }
+
+    if (node.isRoot && this.root.size) {
+      this.root.set(this.commandToCode(node.value), node)
+      return this
     }
 
     if (!node.isRoot && node.ref) {
@@ -97,8 +120,10 @@ export class Command {
     const node = new OptionNode(
       props.value,
       props.isRoot,
-      props.arguments,
       props.ref,
+      props.type,
+      props.arguments,
+      props.action
     );
 
     if (!props.node.next) {
@@ -110,7 +135,11 @@ export class Command {
   }
 
   validate(...commands: string[]) {
-    if (!commands.length) return;
+    if (!commands.length) {
+      throw new Error("Please provide an command", {
+        cause: "VALIDATION_ERROR"
+      })
+    };
 
     if (!this.root.size)
       throw new Error("No options registered", {
@@ -151,11 +180,12 @@ export class Command {
               );
           });
         } else {
-          if (node.arguments.required && !nextCommand)
+
+          if (node.arguments && node.arguments.required && !nextCommand)
             throw new CommandError(`Missing argument ${node.arguments.name}`, {
               cause: "VALIDATION_ERROR",
             });
-          if (node.arguments.type === "number" && Number.isNaN(nextCommandValue))
+          if (node.arguments && node.arguments.type === "number" && Number.isNaN(nextCommandValue))
             throw new CommandError(
               `Invalid argument type, expected: ${node.arguments.type}, received: ${nextCommand}`,
               {
@@ -172,6 +202,7 @@ export class Command {
   }
 
   exec() {
+
     if (!this.currentRoot) throw new CommandError("No currentRoot found", {
       cause: "EXECUTION_ERROR"
     });
@@ -180,6 +211,13 @@ export class Command {
   }
 
   private async recursiveExecution(node: OptionNode) {
+    if (node.type === "standalone" && node.action && isAsyncFunction(node.action)) {
+      await node.action()
+    }
+
+    if (node.type === "standalone" && node.action && !isAsyncFunction(node.action)) {
+      node.action()
+    }
 
     if (Array.isArray(node.arguments)) {
       node.arguments.forEach(async (argument) => {
@@ -192,10 +230,10 @@ export class Command {
         }
       });
     } else {
-      if (isAsyncFunction(node.arguments) && node.arguments.action) {
+      if (isAsyncFunction(node.arguments) && node.arguments && node.arguments.action) {
         await node.arguments.action(node.runtimeValue);
       } else {
-        if (node.arguments.action) {
+        if (node.arguments && node.arguments.action) {
           node.arguments.action(node.runtimeValue);
         }
       }
@@ -211,37 +249,30 @@ export class Command {
   inspect(command: string) {
     const code = this.commandToCode(command);
     const rootNode = this.root.get(code);
-    let findNode: OptionNode | undefined;
 
     if (rootNode) {
       return rootNode;
     }
 
-    this.root.forEach((node) => {
-      findNode = this.findNode(node, command);
-    });
+    if (!this.currentRoot) return
 
-    return findNode;
+    return this.findNode(this.currentRoot, command)
   }
 
   private findNode(
     node: OptionNode,
     command: string,
-    findNode?: OptionNode,
   ): OptionNode | undefined {
+
     if (node.value === command) {
-      findNode = node;
-      return findNode;
+      return node;
     }
 
     if (!node.next) {
-      findNode = undefined;
-      return findNode;
+      return undefined;
     }
 
-    findNode = this.findNode(node.next, command, findNode);
-
-    return findNode;
+    return this.findNode(node.next, command);
   }
 
   private commandToCode(command: string) {

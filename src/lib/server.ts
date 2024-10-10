@@ -7,7 +7,6 @@ app.use(express.json())
 
 
 export const startServer = (url: string, port: number) => {
-
   const proxyMiddleware = createProxyMiddleware({
     target: url,
     changeOrigin: true,

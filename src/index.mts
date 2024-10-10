@@ -5,9 +5,7 @@ import { CommandError } from "./lib/error"
 
 
 const startApplication = (...commands: string[]) => {
-
   try {
-
     command.validate(...commands)
     command.exec()
   } catch (error) {

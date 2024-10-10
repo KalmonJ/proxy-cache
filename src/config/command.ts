@@ -1,6 +1,7 @@
 import { Command } from "../lib/command";
 import { config } from "dotenv"
 import { startServer } from "../lib/server";
+import { memoryCache } from "./cache";
 
 config()
 
@@ -35,7 +36,15 @@ command
         startServer(value, PORT)
       }
     }
-  });
+  }).option({
+    isRoot: true,
+    type: "standalone",
+    value: "--clear-cache",
+    action: function () {
+      memoryCache.clear()
+      console.log("cache clear successfully")
+    },
+  })
 
 export { command }
 

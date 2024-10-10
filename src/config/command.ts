@@ -1,7 +1,9 @@
 import { Command } from "../lib/command";
 import { config } from "dotenv"
-import { startServer } from "../lib/server";
 import { memoryCache } from "./cache";
+import { join } from "path";
+import { Worker } from "worker_threads"
+
 
 config()
 
@@ -33,7 +35,9 @@ command
       name: "url",
       required: true,
       action: function (value: string) {
-        startServer(value, PORT)
+        const path = join(__dirname, "../dist/", "server.js")
+        const serverProcess = new Worker(path)
+        serverProcess.postMessage({ port: PORT, url: value })
       }
     }
   }).option({

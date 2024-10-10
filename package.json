@@ -1,11 +1,11 @@
 {
   "name": "proxy-cache",
   "version": "1.0.0",
-  "main": "dist/index.cjs",
+  "main": "dist/src/index.mjs",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"tsup src/index.mts --watch\" \"node --watch dist/index.cjs\" --names \"typescript,cli\" --prefix-colors blue,magenta",
-    "build": "tsup src/index.mts"
+    "dev": "concurrently \"tsc -w\" \"node --watch dist/src/index.mjs\" --names \"typescript,cli\" --prefix-colors blue,magenta",
+    "build": "tsc"
   },
   "author": "",
   "license": "MIT",
@@ -25,6 +25,6 @@
     "zod": "^3.23.8"
   },
   "bin": {
-    "caching-proxy": "dist/index.cjs"
+    "caching-proxy": "dist/src/index.mjs"
   }
 }

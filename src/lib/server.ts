@@ -1,6 +1,7 @@
 import express from "express"
 import { createProxyMiddleware, responseInterceptor } from "http-proxy-middleware"
 import { memoryCache } from "../config/cache"
+import { parentPort } from "worker_threads"
 
 const app = express()
 app.use(express.json())
@@ -47,3 +48,7 @@ export const startServer = (url: string, port: number) => {
     }
   })
 }
+
+parentPort?.on("message", (value) => {
+  console.log(value, "valor da mensagem")
+})

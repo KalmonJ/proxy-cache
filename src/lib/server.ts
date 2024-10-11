@@ -1,13 +1,18 @@
 import express from "express"
 import { createProxyMiddleware, responseInterceptor } from "http-proxy-middleware"
 import { memoryCache } from "../config/cache"
-import { parentPort } from "worker_threads"
+
+type ServerProps = {
+  port: number
+  url: string
+  pid: number
+}
 
 const app = express()
 app.use(express.json())
 
 
-export const startServer = (url: string, port: number) => {
+export const startServer = ({ pid, port, url }: ServerProps) => {
   const proxyMiddleware = createProxyMiddleware({
     target: url,
     changeOrigin: true,
@@ -49,6 +54,6 @@ export const startServer = (url: string, port: number) => {
   })
 }
 
-parentPort?.on("message", (value) => {
-  console.log(value, "valor da mensagem")
+process.on("message", (message: ServerProps) => {
+  startServer(message)
 })

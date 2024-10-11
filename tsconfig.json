@@ -2,7 +2,7 @@
   "compilerOptions": {
     "lib": ["es5", "es6", "esnext"],
     "target": "ESNext",
-    "module": "ESNext",
+    "module": "CommonJS",  // Mude de ESNext para CommonJS
     "moduleResolution": "Node",
     "outDir": "dist",
     "rootDir": ".",

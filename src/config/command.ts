@@ -2,7 +2,8 @@ import { Command } from "../lib/command";
 import { config } from "dotenv"
 import { memoryCache } from "./cache";
 import { join } from "path";
-import { Worker } from "worker_threads"
+import { ChildProcess, fork } from "child_process"
+import { nodeProcess } from "../lib/node-process";
 
 
 config()
@@ -10,6 +11,7 @@ config()
 const command = new Command();
 
 let PORT = 4040
+let PROCESS: ChildProcess;
 
 command
   .option({
@@ -34,10 +36,11 @@ command
       type: "string",
       name: "url",
       required: true,
-      action: function (value: string) {
-        const path = join(__dirname, "../dist/", "server.js")
-        const serverProcess = new Worker(path)
-        serverProcess.postMessage({ port: PORT, url: value })
+      action: function (url: string) {
+        const path = join(__dirname, "../dist/lib", "server.js")
+        nodeProcess()
+        const cp = fork(path)
+        cp.send({ port: PORT, url, pid: process.pid })
       }
     }
   }).option({
@@ -45,6 +48,7 @@ command
     type: "standalone",
     value: "--clear-cache",
     action: function () {
+      console.log(process.pid, PROCESS)
       memoryCache.clear()
       console.log("cache clear successfully")
     },

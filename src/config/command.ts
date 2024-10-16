@@ -1,17 +1,16 @@
 import { Command } from "../lib/command";
 import { config } from "dotenv"
 import { memoryCache } from "./cache";
+import { fork } from "child_process"
 import { join } from "path";
-import { ChildProcess, fork } from "child_process"
-import { nodeProcess } from "../lib/node-process";
-
+import { createConnection } from "net"
 
 config()
 
 const command = new Command();
 
 let PORT = 4040
-let PROCESS: ChildProcess;
+
 
 command
   .option({
@@ -38,9 +37,9 @@ command
       required: true,
       action: function (url: string) {
         const path = join(__dirname, "../dist/lib", "server.js")
-        nodeProcess()
         const cp = fork(path)
-        cp.send({ port: PORT, url, pid: process.pid })
+        cp.send({ port: PORT, url })
+        cp.unref()
       }
     }
   }).option({
@@ -48,9 +47,11 @@ command
     type: "standalone",
     value: "--clear-cache",
     action: function () {
-      console.log(process.pid, PROCESS)
       memoryCache.clear()
-      console.log("cache clear successfully")
+      const server = createConnection({ port: 8000 })
+      server.write("clear-cache")
+      server.end()
+      console.log("Cache successfully clear")
     },
   })
 

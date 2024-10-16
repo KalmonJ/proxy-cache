@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "concurrently \"tsc -w\" \"node --watch dist/index.js\" --names \"typescript,cli\" --prefix-colors blue,magenta",
+    "dev": "concurrently \"tsup --watch\" \"node --watch dist/index.js\" --names \"typescript,cli\" --prefix-colors blue,magenta",
     "build": "tsup"
   },
   "author": "",

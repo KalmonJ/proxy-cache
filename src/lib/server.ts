@@ -1,18 +1,30 @@
 import express from "express"
 import { createProxyMiddleware, responseInterceptor } from "http-proxy-middleware"
 import { memoryCache } from "../config/cache"
+import { createServer } from "net"
 
 type ServerProps = {
   port: number
   url: string
-  pid: number
 }
 
-const app = express()
-app.use(express.json())
+const server = createServer((socket) => {
+  socket.on("data", (data) => {
+    const message = data.toString("utf-8")
+    if (message === "clear-cache") {
+      memoryCache.clear()
+      console.log("Cache successfully clear")
+    }
+  })
+})
 
+server.listen(8000)
 
-export const startServer = ({ pid, port, url }: ServerProps) => {
+export const startServer = ({ port, url }: ServerProps) => {
+  const app = express()
+
+  app.use(express.json())
+
   const proxyMiddleware = createProxyMiddleware({
     target: url,
     changeOrigin: true,
@@ -40,11 +52,12 @@ export const startServer = ({ pid, port, url }: ServerProps) => {
     }
   })
 
+  app.use(proxyMiddleware)
+
   app.listen(port, () => {
     console.log(`Proxy server is listen on http://localhost:${port}`)
   })
 
-  app.use(proxyMiddleware)
 
 
   process.on("uncaughtException", (error: any) => {

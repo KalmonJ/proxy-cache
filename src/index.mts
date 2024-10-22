@@ -16,6 +16,5 @@ const startApplication = (...commands: string[]) => {
 
 }
 
-
 startApplication(...process.argv.slice(2))
 

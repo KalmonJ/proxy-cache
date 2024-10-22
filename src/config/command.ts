@@ -1,4 +1,4 @@
-import { Command } from "../lib/command";
+import { Command } from "cli-command-validator"
 import { config } from "dotenv"
 import { memoryCache } from "./cache";
 import { fork } from "child_process"
